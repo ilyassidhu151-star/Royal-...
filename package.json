@@ -1,5 +1,5 @@
 {
-  "name": "copy-of-copy-of-copy-of-royal-threads-accounts-management",
+  "name": "royal-threads-enterprise-erp",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,12 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react-dom": "^19.2.3",
     "react": "^19.2.3",
-    "react-router-dom": "^7.12.0",
+    "react-dom": "^19.2.3",
     "lucide-react": "^0.562.0",
-    "recharts": "^3.6.0",
-    "firebase": "^12.7.0"
+    "recharts": "^3.6.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
