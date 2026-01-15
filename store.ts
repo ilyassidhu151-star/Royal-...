@@ -72,7 +72,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     const savedData = localStorage.getItem('royal_threads_v3');
     if (savedData) setGlobalData(JSON.parse(savedData));
-    
     const savedUser = sessionStorage.getItem('royal_threads_session');
     if (savedUser) setCurrentUser(JSON.parse(savedUser));
   }, []);
@@ -103,35 +102,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const saveToCloud = async () => {
     if (!currentUser) return;
     setIsSyncing(true);
-    // Simulate cloud sync - in Vercel this would call /api/sync
     localStorage.setItem('royal_threads_v3', JSON.stringify(globalData));
     setLastSyncTime(new Date().toISOString());
     setTimeout(() => setIsSyncing(false), 800);
   };
 
   const actions = {
-    login,
-    logout,
-    saveToCloud,
-    addProduct: (product: any) => {
+    login, logout, saveToCloud,
+    addProduct: (product: Omit<Product, 'id' | 'stockCount'>) => {
       setGlobalData(prev => ({
         ...prev,
         products: [...prev.products, { ...product, id: crypto.randomUUID(), stockCount: 0 }]
       }));
     },
-    addSupplier: (supplier: any) => {
+    addSupplier: (supplier: Omit<Supplier, 'id'>) => {
       setGlobalData(prev => ({
         ...prev,
         suppliers: [...prev.suppliers, { ...supplier, id: crypto.randomUUID() }]
       }));
     },
-    addWorker: (worker: any) => {
+    addWorker: (worker: Omit<Worker, 'id'>) => {
       setGlobalData(prev => ({
         ...prev,
         workers: [...prev.workers, { ...worker, id: crypto.randomUUID() }]
       }));
     },
-    updateWorker: (id: string, updates: any) => {
+    updateWorker: (id: string, updates: Partial<Worker>) => {
       setGlobalData(prev => ({
         ...prev,
         workers: prev.workers.map(w => w.id === id ? { ...w, ...updates } : w)
@@ -143,7 +139,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         workers: prev.workers.filter(w => w.id !== id)
       }));
     },
-    addPurchase: (purchase: any) => {
+    addPurchase: (purchase: Omit<Purchase, 'id' | 'total'>) => {
       const total = purchase.quantity * purchase.rate;
       setGlobalData(prev => {
         const prod = prev.products.find(p => p.id === purchase.productId);
@@ -164,31 +160,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         };
       });
     },
-    addOrder: (order: any) => {
+    addOrder: (order: Omit<Order, 'id' | 'profit' | 'deliveryCost' | 'salesTax' | 'orderNumber' | 'workerName'>) => {
       const orderNumber = `RT-${(globalData.orders.length + 1).toString().padStart(5, '0')}`;
-      const worker = globalData.workers.find(w => w.id === order.workerId);
+      const worker = globalData.workers.find(w => w.id === (order as any).workerId);
       setGlobalData(prev => ({
         ...prev,
         products: prev.products.map(p => p.id === order.productId ? { ...p, stockCount: Math.max(0, p.stockCount - order.quantity) } : p),
         orders: [...prev.orders, { ...order, id: crypto.randomUUID(), orderNumber, workerName: worker?.name || 'Unknown', profit: 0, deliveryCost: 0, salesTax: 0 }]
       }));
     },
-    updateOrderStatus: (orderId: string, newStatus: OrderStatus, costing?: any) => {
+    updateOrderStatus: (orderId: string, newStatus: OrderStatus, costing?: { deliveryCost: number, salesTax: number }) => {
       setGlobalData(prev => {
         const order = prev.orders.find(o => o.id === orderId);
         if (!order) return prev;
-        
         let products = [...prev.products];
         if (newStatus === OrderStatus.RETURNED && order.status !== OrderStatus.RETURNED) {
           products = products.map(p => p.id === order.productId ? { ...p, stockCount: p.stockCount + order.quantity } : p);
         }
-
         let profit = 0;
         if (newStatus === OrderStatus.DELIVERED && costing) {
           const product = prev.products.find(p => p.id === order.productId);
           profit = (order.salePrice * order.quantity) - ((product?.costPrice || 0) * order.quantity) - costing.deliveryCost - costing.salesTax;
         }
-
         return {
           ...prev,
           products,
@@ -202,41 +195,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         orders: prev.orders.map(o => o.id === orderId ? { ...o, trackingId: newTrackingId } : o)
       }));
     },
-    addExpense: (expense: any) => {
+    addExpense: (expense: Omit<Expense, 'id'>) => {
       setGlobalData(prev => ({
         ...prev,
         expenses: [...prev.expenses, { ...expense, id: crypto.randomUUID() }],
         mainCashBalance: expense.account === CashAccount.MAIN ? prev.mainCashBalance - expense.amount : prev.mainCashBalance,
         adCashBalance: expense.account === CashAccount.AD ? prev.adCashBalance - expense.amount : prev.adCashBalance,
         cashTransactions: [...prev.cashTransactions, {
-          id: crypto.randomUUID(),
-          date: expense.date,
-          description: `Exp: ${expense.category}`,
-          amount: expense.amount,
-          type: TransactionType.OUT,
-          account: expense.account
+          id: crypto.randomUUID(), date: expense.date, description: `Exp: ${expense.category}`, amount: expense.amount, type: TransactionType.OUT, account: expense.account
         }]
       }));
     },
-    addCourierPayment: (payment: any) => {
+    addCourierPayment: (payment: Omit<CourierPayment, 'id'>) => {
       setGlobalData(prev => ({
         ...prev,
         courierPayments: [...prev.courierPayments, { ...payment, id: crypto.randomUUID() }],
         mainCashBalance: prev.mainCashBalance + payment.amount,
         cashTransactions: [...prev.cashTransactions, {
-          id: crypto.randomUUID(),
-          date: payment.date,
-          description: `Collect: ${payment.courier}`,
-          amount: payment.amount,
-          type: TransactionType.IN,
-          account: CashAccount.MAIN
+          id: crypto.randomUUID(), date: payment.date, description: `Collect: ${payment.courier}`, amount: payment.amount, type: TransactionType.IN, account: CashAccount.MAIN
         }]
       }));
     },
     processScanData: (barcode: string) => {
       const order = globalData.orders.find(o => o.trackingId === barcode);
       if (!order) return { message: 'Parcel Not Found', type: 'ERROR' as const };
-      
       if (order.status === OrderStatus.PENDING) {
         actions.updateOrderStatus(order.id, OrderStatus.SHIPPED);
         return { message: `Order ${order.orderNumber} -> SHIPPED`, type: 'NEW' as const };
@@ -246,7 +228,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       return { message: `Order is ${order.status}`, type: 'ERROR' as const };
     },
-    addLedgerEntry: (entry: any) => {
+    addLedgerEntry: (entry: Omit<CashTransaction, 'id'>) => {
       setGlobalData(prev => {
         const delta = entry.type === TransactionType.IN ? entry.amount : -entry.amount;
         return {
@@ -268,11 +250,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, 0);
 
   const computed = {
-    totalSales,
-    totalPurchases,
-    totalExpenses,
+    totalSales, totalPurchases, totalExpenses, cogs,
     netProfit: totalSales - cogs - totalExpenses,
-    cogs,
     currentStockValue: globalData.products.reduce((acc, p) => acc + (p.stockCount * p.costPrice), 0),
     lowStockProducts: globalData.products.filter(p => p.stockCount <= p.lowStockThreshold),
     getCourierReceivable: (courier: string) => {
@@ -282,9 +261,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  return React.createElement(StoreContext.Provider, { 
-    value: { state: { ...globalData, currentUser, isSyncing, lastSyncTime }, actions, computed } 
-  }, children);
+  // Using React.createElement instead of JSX to fix parsing errors in a .ts file
+  return React.createElement(
+    StoreContext.Provider,
+    { value: { state: { ...globalData, currentUser, isSyncing, lastSyncTime }, actions, computed } },
+    children
+  );
 };
 
 export const useStore = () => {
